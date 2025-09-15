@@ -102,6 +102,20 @@
             transition: transform 1s cubic-bezier(0.2, 1, 0.6, 1), opacity 0.8s ease-in;
             opacity: 1;
         }
+        .delete-btn {
+            margin-left: 12px;
+            background: #ff4d4f;
+            color: #fff;
+            padding: 0.3rem 0.7rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .delete-btn:hover {
+            background: #d90429;
+        }
     </style>
 </head>
 <body class="bg-gray-100 text-gray-700">
@@ -135,8 +149,8 @@
         <ul id="taskList" class="task-list space-y-4"></ul>
         <!-- Add New Task Form -->
         <div class="mt-8 flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
-            <input type="text" id="taskInput" placeholder="Enter a new quest..." class="flex-1 bg-gray-200 text-gray-800 placeholder-gray-500 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#9B8BFF]" />
-            <input type="number" id="xpInput" placeholder="XP (e.g. 50)" class="w-full sm:w-28 bg-gray-200 text-gray-800 placeholder-gray-500 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#9B8BFF]" />
+            <input type="text" id="taskInput" placeholder="Enter a new quest..." class="flex-1 bg-gray-200 text-gray-800 placeholder-gray-500 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#9B8BFF]">
+            <input type="number" id="xpInput" placeholder="XP (e.g. 50)" class="w-full sm:w-28 bg-gray-200 text-gray-800 placeholder-gray-500 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#9B8BFF]">
             <button id="addTaskButton" class="w-full sm:w-auto button bg-green-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-green-600 focus:outline-none focus:ring-4 focus:ring-green-300 focus:ring-opacity-50">
                 Add New Quest
             </button>
@@ -178,6 +192,7 @@
         const levelUpModal = document.getElementById('levelUpModal');
         const simbaContainer = document.getElementById('simbaContainer');
         const boneCountEl = document.getElementById('boneCount');
+
         // Show level-up notification
         function showLevelUpModal() {
             levelUpModal.textContent = `You've Leveled Up! You are now Level ${simulatedDB.player.level}!`;
@@ -186,6 +201,7 @@
                 levelUpModal.classList.remove('show');
             }, 3000);
         }
+
         // Render player stats and tasks
         function renderUI() {
             playerLevel.textContent = simulatedDB.player.level;
@@ -200,20 +216,39 @@
                 const li = document.createElement('li');
                 li.className = `flex items-center justify-between p-4 cursor-pointer rounded-lg hover:bg-gray-200 ${task.completed ? 'completed' : ''}`;
                 li.dataset.taskId = task.id;
+                // Text & XP
+                const leftWrapper = document.createElement('div');
+                leftWrapper.className = 'flex items-center flex-1';
                 const textSpan = document.createElement('span');
                 textSpan.textContent = task.text;
                 textSpan.className = 'flex-1';
                 const xpSpan = document.createElement('span');
                 xpSpan.textContent = `+${task.xp} XP 💰`;
                 xpSpan.className = 'text-green-500 font-bold ml-4';
-                li.appendChild(textSpan);
-                li.appendChild(xpSpan);
-                li.addEventListener('click', (e) => {
+                leftWrapper.appendChild(textSpan);
+                leftWrapper.appendChild(xpSpan);
+                // Toggle completion by clicking left side only
+                leftWrapper.addEventListener('click', (e) => {
+                    if (e.target.className === 'delete-btn') return;
                     toggleTask(task.id, li);
                 });
+                li.appendChild(leftWrapper);
+
+                // Delete Button
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'delete-btn';
+                deleteBtn.title = 'Delete this quest';
+                deleteBtn.innerHTML = '🗑️';
+                deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    deleteTask(task.id);
+                });
+                li.appendChild(deleteBtn);
+
                 taskList.appendChild(li);
             });
         }
+
         // Toggle completion
         function toggleTask(taskId, element) {
             const task = simulatedDB.tasks.find(t => t.id === taskId);
@@ -227,6 +262,16 @@
                 }
             }
         }
+
+        // Delete a task
+        function deleteTask(taskId) {
+            const idx = simulatedDB.tasks.findIndex(t => t.id === taskId);
+            if (idx !== -1) {
+                simulatedDB.tasks.splice(idx, 1);
+                renderUI();
+            }
+        }
+
         // Animate coin
         function animateCoin(sourceElement) {
             const coin = document.createElement('div');
@@ -248,6 +293,7 @@
             coin.style.opacity = '0';
             setTimeout(() => { coin.remove(); }, 1000);
         }
+
         // Animate bone to Simba
         function animateBone(sourceElement) {
             const bone = document.createElement('div');
@@ -271,6 +317,7 @@
             renderUI();
             setTimeout(() => { bone.remove(); }, 1000);
         }
+
         // Update player XP and level
         function updatePlayerXP(xpAmount) {
             simulatedDB.player.xp += xpAmount;
@@ -285,6 +332,7 @@
             }
             renderUI();
         }
+
         // Add new task
         function addTask() {
             const text = taskInput.value.trim();
@@ -304,50 +352,48 @@
                 showSimpleModal("Please enter a valid quest and XP value.");
             }
         }
-        // Generate quest via Gemini API
-        async function addTaskFromLLM() {
+
+        // Generate quest locally from a predefined list
+        function addTaskFromLLM() {
             generateQuestButton.disabled = true;
             generateQuestButton.innerHTML = `<span class="animate-pulse">⏳</span> Generating...`;
-            try {
-                const userQuery = "Generate a single, creative, non-violent, and fun side quest for a gamified to-do list. The quest should be short and a single sentence. Examples: 'Befriend a wild hedgehog', 'Leave a surprise note for someone', 'Take a photo of something blue'.";
-                const systemPrompt = "You are a friendly and creative game master for a gamified to-do list app. Your role is to generate fun, lighthearted, and non-violent side quests for the user. Only reply with the quest sentence.";
-                // *** You must provide a valid Gemini API key! ***
-                const apiKey = ""; // Set your Gemini API key here or via environment variable
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
-                const payload = {
-                    contents: [{ parts: [{ text: userQuery }] }],
-                    systemInstruction: { parts: [{ text: systemPrompt }] },
+            setTimeout(() => {
+                const quests = [
+                    "Water a plant and watch it thrive.",
+                    "Compliment someone today.",
+                    "Organize your desk for 5 minutes.",
+                    "Take a 10-minute walk outside.",
+                    "Draw a doodle of your favorite animal.",
+                    "Write down three things you're grateful for.",
+                    "Read a page from a book.",
+                    "Listen to your favorite song.",
+                    "Try a new healthy snack.",
+                    "Do 5 minutes of stretching.",
+                    "Send a funny meme to a friend.",
+                    "Make up a joke and write it down.",
+                    "Try a new dance move in your room.",
+                    "Smile at yourself in the mirror.",
+                    "Invent a secret handshake.",
+                    "Make a paper airplane and fly it.",
+                    "Find something in your house that starts with 'Z'.",
+                    "Sing a line from your favorite song.",
+                    "Pretend you're a superhero for 1 minute.",
+                    "Give yourself a positive affirmation."
+                ];
+                const generatedQuestText = quests[Math.floor(Math.random() * quests.length)];
+                const newTask = {
+                    id: Date.now(),
+                    text: generatedQuestText,
+                    xp: 25,
+                    completed: false
                 };
-                let response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                if (!response.ok) {
-                    throw new Error(`API call failed with status: ${response.status}`);
-                }
-                const result = await response.json();
-                const generatedQuestText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
-                if (generatedQuestText) {
-                    const newTask = {
-                        id: Date.now(),
-                        text: generatedQuestText.trim(),
-                        xp: 25,
-                        completed: false
-                    };
-                    simulatedDB.tasks.push(newTask);
-                    renderUI();
-                } else {
-                    showSimpleModal("Failed to generate a quest. Please try again.");
-                }
-            } catch (error) {
-                console.error("Error generating quest:", error);
-                showSimpleModal("An error occurred. Could not generate a new quest.");
-            } finally {
+                simulatedDB.tasks.push(newTask);
+                renderUI();
                 generateQuestButton.disabled = false;
                 generateQuestButton.innerHTML = `<span class="animate-pulse">✨</span> <span>Generate a New Quest</span> <span class="animate-pulse">✨</span>`;
-            }
+            }, 700); // Simulate loading time
         }
+
         // Simple modal
         function showSimpleModal(message) {
             const modal = document.createElement('div');
@@ -371,6 +417,7 @@
             document.body.appendChild(modal);
             setTimeout(() => { modal.remove(); }, 2500);
         }
+
         addTaskButton.addEventListener('click', addTask);
         taskInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
