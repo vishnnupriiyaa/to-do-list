@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gamified To-Do List</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F0F4F8; /* Light blue-gray background */
+            color: #4A5568;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 2rem;
+            box-sizing: border-box;
+        }
+
+        .card {
+            background-color: #FFFFFF;
+            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.1), 0 4px 10px -2px rgba(0, 0, 0, 0.05);
+            border-radius: 1.5rem;
+            transition: transform 0.3s ease-in-out;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .xp-bar-container {
+            background-color: #E2E8F0;
+            border-radius: 9999px;
+            overflow: hidden;
+        }
+        .xp-bar {
+            background-color: #A5D6A7; /* Soft pastel green */
+            height: 1.5rem;
+            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .task-list li {
+            background-color: #F3F4F6;
+            border-radius: 0.75rem;
+            transition: background-color 0.2s, transform 0.2s;
+        }
+        .task-list li:hover {
+            background-color: #E9EDF2;
+            transform: translateX(5px);
+        }
+        .task-list .completed {
+            background-color: #D4EDDA; /* Light pastel green for completed */
+            text-decoration: none;
+            color: #718096;
+            position: relative;
+        }
+
+        .button {
+            transition: background-color 0.2s, transform 0.2s, box-shadow 0.2s;
+        }
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .button:active {
+            transform: translateY(0);
+        }
+
+        /* Level-up Modal */
+        #levelUpModal {
+            position: fixed;
+            top: 2rem;
+            left: 50%;
+            transform: translateX(-50%) translateY(-150%);
+            background-color: #9B8BFF; /* Soft purple/pink */
+            color: #FFFFFF;
+            padding: 1.5rem 2rem;
+            border-radius: 1rem;
+            font-weight: bold;
+            font-size: 1.25rem;
+            box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            opacity: 0;
+            transition: transform 0.5s ease-out, opacity 0.5s ease-out;
+        }
+
+        #levelUpModal.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+        
+        .coin-animation {
+            position: fixed;
+            z-index: 9999;
+            width: 20px;
+            height: 20px;
+            pointer-events: none;
+            will-change: transform, opacity;
+            transition: transform 1s cubic-bezier(0.2, 1, 0.6, 1), opacity 0.8s ease-in;
+            opacity: 1;
+        }
+        .bone-animation {
+            position: fixed;
+            z-index: 9999;
+            width: 24px;
+            height: 24px;
+            pointer-events: none;
+            will-change: transform, opacity;
+            transition: transform 1s cubic-bezier(0.2, 1, 0.6, 1), opacity 0.8s ease-in;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-700">
+
+    <div class="card p-8 w-full max-w-xl">
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-extrabold text-gray-800">Your Daily Quests</h1>
+            <p class="text-gray-500 mt-2">Complete tasks to earn XP and level up!</p>
+        </div>
+
+        <!-- Player Profile & XP Bar -->
+        <div class="mb-8 p-6 bg-gray-200 rounded-xl">
+            <div class="flex items-center justify-between mb-4">
+                <div class="text-lg font-bold text-gray-600">Level <span id="playerLevel">1</span></div>
+                <div class="text-lg font-bold text-gray-600"><span id="playerXP">0</span> / <span id="levelXP">100</span> XP</div>
+            </div>
+            <div class="xp-bar-container">
+                <div id="xpBar" class="xp-bar" style="width: 0%;"></div>
+            </div>
+        </div>
+        
+        <!-- Simba and Bone Counter -->
+        <div class="flex items-center justify-center mb-8">
+            <div id="simbaContainer" class="flex flex-col items-center">
+                <span class="text-5xl">🐶</span>
+                <span class="text-xl font-bold text-gray-800 mt-2">Simba</span>
+                <div class="flex items-center mt-2">
+                    <span class="text-3xl">🦴</span>
+                    <span id="boneCount" class="text-3xl font-bold ml-2">0</span>
+                </div>
+            </div>
+        </div>
+        
+
+        <!-- To-Do List -->
+        <ul id="taskList" class="task-list space-y-4">
+            <!-- Task items will be inserted here by JavaScript -->
+        </ul>
+        
+        <!-- Generate Quest Button -->
+        <div class="mt-8">
+             <button id="generateQuestButton" class="w-full button bg-[#9B8BFF] text-white font-bold py-3 px-6 rounded-lg hover:bg-[#8570FF] focus:outline-none focus:ring-4 focus:ring-[#9B8BFF] focus:ring-opacity-50 flex items-center justify-center space-x-2">
+                <span class="animate-pulse">✨</span> 
+                <span>Generate a New Quest</span>
+                <span class="animate-pulse">✨</span>
+            </button>
+        </div>
+
+        <!-- Add New Task Form -->
+        <div class="mt-8 flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
+            <input type="text" id="taskInput" placeholder="Enter a new quest..." class="flex-1 bg-gray-200 text-gray-800 placeholder-gray-500 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
+            <input type="number" id="xpInput" placeholder="XP (e.g. 50)" class="w-full sm:w-28 bg-gray-200 text-gray-800 placeholder-gray-500 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
+            <button id="addTaskButton" class="button bg-[#9B8BFF] text-white font-bold py-3 px-6 rounded-lg hover:bg-[#8570FF] focus:outline-none focus:ring-4 focus:ring-[#9B8BFF] focus:ring-opacity-50">
+                Add Quest
+            </button>
+        </div>
+    </div>
+    
+    <!-- Level-up notification modal -->
+    <div id="levelUpModal">
+        You've Leveled Up!
+    </div>
+
+    <script type="module">
+        // Simulating a back-end database
+        const simulatedDB = {
+            player: {
+                level: 1,
+                xp: 0,
+                xpToNextLevel: 100,
+                bones: 0
+            },
+            tasks: [
+                { id: 1, text: "Finish 'The Great War' assignment", xp: 50, completed: false },
+                { id: 2, text: "Check your email", xp: 10, completed: false },
+                { id: 3, text: "Clean your workspace", xp: 20, completed: false }
+            ]
+        };
+
+        const playerLevel = document.getElementById('playerLevel');
+        const playerXP = document.getElementById('playerXP');
+        const levelXP = document.getElementById('levelXP');
+        const xpBar = document.getElementById('xpBar');
+        const taskList = document.getElementById('taskList');
+        const taskInput = document.getElementById('taskInput');
+        const xpInput = document.getElementById('xpInput');
+        const addTaskButton = document.getElementById('addTaskButton');
+        const generateQuestButton = document.getElementById('generateQuestButton');
+        const levelUpModal = document.getElementById('levelUpModal');
+        const simbaContainer = document.getElementById('simbaContainer');
+        const boneCountEl = document.getElementById('boneCount');
+
+        // Function to show the level-up notification
+        function showLevelUpModal() {
+            levelUpModal.textContent = `You've Leveled Up! You are now Level ${simulatedDB.player.level}!`;
+            levelUpModal.classList.add('show');
+            setTimeout(() => {
+                levelUpModal.classList.remove('show');
+            }, 3000); // Hide after 3 seconds
+        }
+
+        // Render the player's profile and tasks
+        function renderUI() {
+            // Update player stats
+            playerLevel.textContent = simulatedDB.player.level;
+            playerXP.textContent = simulatedDB.player.xp;
+            levelXP.textContent = simulatedDB.player.xpToNextLevel;
+            const progress = (simulatedDB.player.xp / simulatedDB.player.xpToNextLevel) * 100;
+            xpBar.style.width = `${progress}%`;
+            boneCountEl.textContent = simulatedDB.player.bones;
+
+            // Clear existing tasks
+            taskList.innerHTML = '';
+
+            // Render tasks
+            simulatedDB.tasks.forEach(task => {
+                const li = document.createElement('li');
+                li.className = `flex items-center justify-between p-4 cursor-pointer rounded-lg hover:bg-gray-200 ${task.completed ? 'completed' : ''}`;
+                li.dataset.taskId = task.id;
+
+                const textSpan = document.createElement('span');
+                textSpan.textContent = task.text;
+                textSpan.className = 'flex-1';
+                
+                const xpSpan = document.createElement('span');
+                xpSpan.textContent = `+${task.xp} XP 💰`;
+                xpSpan.className = 'text-green-500 font-bold ml-4';
+
+                li.appendChild(textSpan);
+                li.appendChild(xpSpan);
+
+                li.addEventListener('click', (e) => {
+                    toggleTask(task.id, li);
+                });
+
+                taskList.appendChild(li);
+            });
+        }
+
+        // Toggle task completion
+        function toggleTask(taskId, element) {
+            const task = simulatedDB.tasks.find(t => t.id === taskId);
+            if (task) {
+                const xpChange = task.completed ? -task.xp : task.xp;
+                task.completed = !task.completed;
+                updatePlayerXP(xpChange);
+                if (task.completed) {
+                    animateCoin(element);
+                    animateBone(element);
+                }
+            }
+        }
+
+        // Animate a coin flying from the task to the XP bar
+        function animateCoin(sourceElement) {
+            const coin = document.createElement('div');
+            coin.className = 'coin-animation';
+            coin.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-full h-full text-yellow-500">
+                    <path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zM12.75 6a.75.75 0 00-1.5 0v6c0 .414.336.75.75.75h4.5a.75.75 0 000-1.5h-3.75V6z" clip-rule="evenodd" />
+                </svg>
+            `;
+            document.body.appendChild(coin);
+
+            const sourceRect = sourceElement.getBoundingClientRect();
+            const targetRect = xpBar.getBoundingClientRect();
+            
+            // Set initial position
+            coin.style.left = `${sourceRect.left}px`;
+            coin.style.top = `${sourceRect.top}px`;
+
+            // Force reflow
+            void coin.offsetWidth;
+
+            // Animate to target
+            const startX = sourceRect.left;
+            const startY = sourceRect.top;
+            const endX = targetRect.left + (targetRect.width / 2) - 10;
+            const endY = targetRect.top + (targetRect.height / 2) - 10;
+
+            const dx = endX - startX;
+            const dy = endY - startY;
+
+            coin.style.transform = `translate(${dx}px, ${dy}px) scale(0.5)`;
+            coin.style.opacity = '0';
+
+            setTimeout(() => {
+                coin.remove();
+            }, 1000);
+        }
+        
+        // Animate a bone flying to Simba
+        function animateBone(sourceElement) {
+            const bone = document.createElement('div');
+            bone.className = 'bone-animation text-4xl';
+            bone.textContent = '🦴';
+            document.body.appendChild(bone);
+            
+            const sourceRect = sourceElement.getBoundingClientRect();
+            const targetRect = simbaContainer.getBoundingClientRect();
+            
+            // Set initial position
+            bone.style.left = `${sourceRect.left}px`;
+            bone.style.top = `${sourceRect.top}px`;
+
+            // Force reflow
+            void bone.offsetWidth;
+
+            // Animate to target
+            const startX = sourceRect.left;
+            const startY = sourceRect.top;
+            const endX = targetRect.left + (targetRect.width / 2) - 12;
+            const endY = targetRect.top + (targetRect.height / 2) - 12;
+
+            const dx = endX - startX;
+            const dy = endY - startY;
+            
+            bone.style.transform = `translate(${dx}px, ${dy}px) scale(1.5)`;
+            bone.style.opacity = '0';
+            
+            simulatedDB.player.bones += 1;
+            renderUI();
+
+            setTimeout(() => {
+                bone.remove();
+            }, 1000);
+        }
+
+        // Update player XP and level
+        function updatePlayerXP(xpAmount) {
+            simulatedDB.player.xp += xpAmount;
+
+            // Check for level up
+            while (simulatedDB.player.xp >= simulatedDB.player.xpToNextLevel) {
+                simulatedDB.player.xp -= simulatedDB.player.xpToNextLevel;
+                simulatedDB.player.level += 1;
+                simulatedDB.player.xpToNextLevel = Math.floor(simulatedDB.player.xpToNextLevel * 1.5);
+                showLevelUpModal(); // Call the custom modal
+            }
+            // Ensure XP doesn't drop below 0
+            if (simulatedDB.player.xp < 0) {
+                simulatedDB.player.xp = 0;
+            }
+            renderUI();
+        }
+
+        // Add a new task
+        function addTask() {
+            const text = taskInput.value.trim();
+            const xp = parseInt(xpInput.value, 10);
+
+            if (text && xp && xp > 0) {
+                const newTask = {
+                    id: Date.now(),
+                    text: text,
+                    xp: xp,
+                    completed: false
+                };
+                simulatedDB.tasks.push(newTask);
+                taskInput.value = '';
+                xpInput.value = '';
+                renderUI();
+            } else {
+                showSimpleModal("Please enter a valid quest and XP value.");
+            }
+        }
+        
+        // Add a task generated by the LLM
+        async function addTaskFromLLM() {
+            const generateButton = document.getElementById('generateQuestButton');
+            generateButton.disabled = true;
+            generateButton.innerHTML = `<span class="animate-pulse">⏳</span> Generating...`;
+
+            try {
+                const userQuery = "Generate a single, creative, non-violent, and fun side quest for a gamified to-do list. The quest should be short and a single sentence. Examples: 'Befriend a wild houseplant by watering it', 'Craft a paper airplane and test its flight'.";
+                
+                const systemPrompt = "You are a friendly and creative game master for a gamified to-do list app. Your role is to generate fun, lighthearted, and non-violent side quests for the user. Only provide the text of the quest. Do not include any preambles like 'Here is your quest:' or anything similar.";
+
+                const apiKey = ""; // This will be automatically provided by the Canvas environment.
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+                const payload = {
+                    contents: [{ parts: [{ text: userQuery }] }],
+                    systemInstruction: {
+                        parts: [{ text: systemPrompt }]
+                    },
+                };
+                
+                let response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API call failed with status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                const generatedQuestText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+                
+                if (generatedQuestText) {
+                    const newTask = {
+                        id: Date.now(),
+                        text: generatedQuestText.trim(),
+                        xp: 25, // Default XP for a generated quest
+                        completed: false
+                    };
+                    simulatedDB.tasks.push(newTask);
+                    renderUI();
+                } else {
+                    showSimpleModal("Failed to generate a quest. Please try again.");
+                }
+                
+            } catch (error) {
+                console.error("Error generating quest:", error);
+                showSimpleModal("An error occurred. Could not generate a new quest.");
+            } finally {
+                generateQuestButton.disabled = false;
+                generateQuestButton.innerHTML = `<span class="animate-pulse">✨</span> <span>Generate a New Quest</span> <span class="animate-pulse">✨</span>`;
+            }
+        }
+
+        // A simple modal function to replace alert()
+        function showSimpleModal(message) {
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                padding: 1.5rem;
+                background-color: white;
+                border-radius: 0.75rem;
+                box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+                z-index: 2000;
+                font-family: 'Inter', sans-serif;
+                font-size: 1rem;
+                color: #4A5568;
+                text-align: center;
+                max-width: 90%;
+            `;
+            modal.textContent = message;
+            document.body.appendChild(modal);
+
+            setTimeout(() => {
+                modal.remove();
+            }, 2500);
+        }
+
+        addTaskButton.addEventListener('click', addTask);
+        taskInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                addTask();
+            }
+        });
+        generateQuestButton.addEventListener('click', addTaskFromLLM);
+
+        // Initial render
+        renderUI();
+
+    </script>
+</body>
+</html>
